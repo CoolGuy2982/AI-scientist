@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Scientist</title>
+    <style>
+        :root {
+            --bg: #fbfbfd;
+            --surface: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent: #0071e3;
+            --accent-glow: rgba(0, 113, 227, 0.15);
+            --border: rgba(0,0,0,0.06);
+            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            font-family: var(--font-stack);
+            background-color: var(--bg);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* --- CHAT VIEW --- */
+        #chat-view {
+            display: flex; flex-direction: column;
+            height: 100%; width: 100%;
+            transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        header {
+            padding: 24px; text-align: center;
+            font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+            color: var(--text-secondary); text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            background: rgba(251, 251, 253, 0.8); backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        #chat-messages {
+            flex: 1; overflow-y: auto;
+            padding: 40px 20% 40px 20%;
+            display: flex; flex-direction: column; gap: 20px;
+        }
+
+        .bubble {
+            max-width: 80%; padding: 14px 20px;
+            border-radius: 18px; font-size: 16px; line-height: 1.5;
+            animation: fadeUp 0.4s ease forwards;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .user .bubble { align-self: flex-end; background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+        .ai .bubble { align-self: flex-start; background: var(--surface); color: var(--text-primary); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
+
+        .input-area {
+            padding: 30px; display: flex; justify-content: center;
+            background: linear-gradient(to top, var(--bg) 60%, transparent);
+        }
+        .input-box {
+            width: 600px; background: var(--surface); padding: 8px 8px 8px 20px;
+            border-radius: 30px; display: flex; align-items: center;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.06); border: 1px solid var(--border);
+        }
+        input { flex: 1; border: none; font-size: 16px; outline: none; background: transparent; }
+        .send-btn {
+            width: 40px; height: 40px; border-radius: 50%; border: none;
+            background: var(--text-primary); color: white; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.1s;
+        }
+        .send-btn:active { transform: scale(0.92); }
+
+        /* --- DEEP RESEARCH VIEW --- */
+        #research-view {
+            display: none; position: fixed; inset: 0;
+            background: var(--bg); z-index: 20;
+            flex-direction: column; opacity: 0;
+            transition: opacity 0.8s ease;
+        }
+
+        /* Two columns layout */
+        .research-layout {
+            display: flex; flex: 1; height: 100%; overflow: hidden;
+        }
+
+        /* LEFT: Live Operations Feed */
+        .ops-panel {
+            width: 400px; border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            background: #f5f5f7;
+        }
+        .ops-header {
+            padding: 24px; font-size: 13px; font-weight: 600; color: var(--text-secondary);
+            border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;
+        }
+        .pulse-dot {
+            width: 8px; height: 8px; background: #34c759; border-radius: 50%;
+            box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+
+        #ops-feed {
+            flex: 1; overflow-y: auto; padding: 20px;
+            display: flex; flex-direction: column; gap: 12px;
+            scroll-behavior: smooth;
+        }
+
+        /* Log Cards */
+        .log-card {
+            background: var(--surface); padding: 14px; border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.04);
+            font-size: 13px; line-height: 1.4;
+            animation: slideInLeft 0.3s ease forwards;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            transition: all 0.2s;
+        }
+        .log-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+        .log-header {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+            font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .icon { width: 14px; height: 14px; }
+
+        /* Categories */
+        .cat-thinking .log-header { color: #bf5af2; }
+        .cat-thinking .icon { fill: #bf5af2; }
+        .cat-search .log-header { color: #0071e3; }
+        .cat-search .icon { fill: #0071e3; }
+        .cat-reading .log-header { color: #ff9500; }
+        .cat-reading .icon { fill: #ff9500; }
+
+        /* RIGHT: Report Preview */
+        .report-panel {
+            flex: 1; display: flex; flex-direction: column;
+            background: var(--surface);
+        }
+        .report-header {
+            padding: 24px; text-align: center; border-bottom: 1px solid var(--border);
+            color: var(--text-secondary); font-size: 13px; font-weight: 500;
+        }
+        #report-content {
+            flex: 1; overflow-y: auto; padding: 60px 15%;
+            font-size: 16px; line-height: 1.7; color: #333;
+        }
+        
+        /* Loading Overlay for Report Panel */
+        .placeholder-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; color: var(--text-secondary); gap: 20px;
+        }
+        .spinner {
+            width: 24px; height: 24px; border: 3px solid rgba(0,0,0,0.1);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Animations */
+        @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes slideInLeft { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
+        @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(52, 199, 89, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Markdown tweaks */
+        h1 { font-size: 2.2em; letter-spacing: -0.02em; margin-bottom: 0.5em; }
+        h2 { margin-top: 1.5em; color: var(--text-primary); }
+        blockquote { border-left: 3px solid var(--accent); padding-left: 16px; color: var(--text-secondary); margin-left: 0; }
+        code { background: #f5f5f7; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: monospace; }
+        
+        /* Thought Expansion */
+        .thought-text { font-family: 'SF Mono', monospace; font-size: 12px; color: #666; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+
+    <!-- VIEW 1: CHAT -->
+    <div id="chat-view">
+        <header>Frontier Research Assistant</header>
+        <div id="chat-messages">
+            <div class="message ai">
+                <div class="bubble">I am ready. What scientific frontier are we exploring today?</div>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-box">
+                <input type="text" id="user-input" placeholder="Enter a research topic..." autocomplete="off">
+                <button class="send-btn" onclick="sendMessage()">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 8 8 4 12 8"></polyline><line x1="8" y1="4" x2="8" y2="16"></line></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 2: RESEARCH DASHBOARD -->
+    <div id="research-view">
+        <div class="research-layout">
+            
+            <!-- LEFT: Operations Feed -->
+            <div class="ops-panel">
+                <div class="ops-header">
+                    <span>Agent Operations</span>
+                    <div class="pulse-dot"></div>
+                </div>
+                <div id="ops-feed">
+                    <!-- Cards will be injected here -->
+                </div>
+            </div>
+
+            <!-- RIGHT: Report Preview -->
+            <div class="report-panel">
+                <div class="report-header">Live Document Draft</div>
+                <div id="report-content">
+                    <div class="placeholder-state" id="report-placeholder">
+                        <div class="spinner"></div>
+                        <span>Waiting for agent to draft content...</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        let history = []; 
+
+        // --- Chat Logic ---
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const text = input.value.trim();
+            if(!text) return;
+
+            addBubble('user', text);
+            input.value = '';
+            
+            const aiBubble = addBubble('ai', '');
+            let currentText = "";
+
+            try {
+                const res = await fetch('/api/chat_stream', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ message: text, history: history })
+                });
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+
+                while(true) {
+                    const {done, value} = await reader.read();
+                    if(done) break;
+                    const chunk = decoder.decode(value, {stream:true});
+                    const lines = chunk.split('\n');
+
+                    for(const line of lines) {
+                        if(!line.trim()) continue;
+                        try {
+                            const data = JSON.parse(line);
+                            if(data.type === 'text') {
+                                currentText += data.content;
+                                aiBubble.innerHTML = marked.parse(currentText);
+                            } 
+                            else if(data.type === 'RESEARCH_STARTED') {
+                                history.push({ role: 'model', text: currentText });
+                                switchToDashboard(data.topic, data.id);
+                                return;
+                            }
+                        } catch(e) {}
+                    }
+                }
+                history.push({role: 'model', text: currentText});
+            } catch(e) { aiBubble.innerText = "Error connecting."; }
+        }
+
+        function addBubble(role, text) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            const bub = document.createElement('div');
+            bub.className = 'bubble';
+            if(text) bub.innerHTML = marked.parse(text);
+            div.appendChild(bub);
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return bub;
+        }
+
+        // --- Dashboard Logic ---
+
+        function switchToDashboard(topic, id) {
+            const chat = document.getElementById('chat-view');
+            const dash = document.getElementById('research-view');
+            
+            chat.style.opacity = '0';
+            setTimeout(() => {
+                chat.style.display = 'none';
+                dash.style.display = 'flex';
+                void dash.offsetWidth; // Reflow
+                dash.style.opacity = '1';
+                addLogCard('thinking', `Initializing deep research on: "${topic}"`);
+                connectResearchStream(id);
+            }, 600);
+        }
+
+        async function connectResearchStream(id) {
+            try {
+                const res = await fetch(`/api/research_stream/${id}`);
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                
+                let reportText = "";
+                const reportDiv = document.getElementById('report-content');
+                const placeholder = document.getElementById('report-placeholder');
+                let hasReportStarted = false;
+
+                // For aggregating partial thoughts to update a single card
+                let activeThoughtCard = null; 
+
+                while(true) {
+                    const {done, value} = await reader.read();
+                    if(done) break;
+                    
+                    const chunk = decoder.decode(value, {stream:true});
+                    const lines = chunk.split('\n');
+
+                    for(const line of lines) {
+                        if(!line.trim()) continue;
+                        const data = JSON.parse(line);
+
+                        // 1. Logs (Thinking / Search)
+                        if (data.type === 'log') {
+                            if (data.category === 'thinking') {
+                                // Update existing thought card or create new one to reduce spam
+                                if (activeThoughtCard) {
+                                    activeThoughtCard.innerText += data.content;
+                                } else {
+                                    activeThoughtCard = addLogCard('thinking', data.content);
+                                }
+                            } else {
+                                // Search/Read events reset the active thought card
+                                activeThoughtCard = null; 
+                                addLogCard(data.category, data.content);
+                            }
+                        }
+                        
+                        // 2. Report Generation
+                        else if (data.type === 'report_delta') {
+                            if (!hasReportStarted) {
+                                placeholder.style.display = 'none';
+                                hasReportStarted = true;
+                            }
+                            reportText += data.content;
+                            // Only update innerHTML periodically or fully to prevent flickering, 
+                            // but for MD text simple append is tricky. We re-parse.
+                            // Optimization: In prod, append text node, but for markdown we re-render.
+                            reportDiv.innerHTML = marked.parse(reportText);
+                            reportDiv.scrollTop = reportDiv.scrollHeight;
+                        }
+
+                        // 3. Complete
+                        else if (data.type === 'complete') {
+                            addLogCard('reading', 'Research Task Completed.');
+                            document.querySelector('.pulse-dot').style.background = '#86868b';
+                            document.querySelector('.pulse-dot').style.animation = 'none';
+                        }
+                    }
+                }
+            } catch(e) {
+                console.error(e);
+                addLogCard('reading', 'Connection lost.');
+            }
+        }
+
+        function addLogCard(category, content) {
+            const feed = document.getElementById('ops-feed');
+            const card = document.createElement('div');
+            card.className = `log-card cat-${category}`;
+            
+            // Icons
+            const icons = {
+                thinking: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-1.02-2-2.18-2-1.35 0-2.31 1.05-2.58 2.45l-1.93-.54C7.75 6.42 9.68 5 11.99 5c2.28 0 4 1.66 4 3.99 0 .93-.36 1.76-.92 2.26z"/></svg>',
+                search: '<svg class="icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>',
+                reading: '<svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>'
+            };
+
+            const headerTitle = {
+                thinking: 'Reasoning',
+                search: 'Tool: Google Search',
+                reading: 'System'
+            }[category] || 'Log';
+
+            // Special handling for thinking content (pre-wrap style)
+            const textClass = category === 'thinking' ? 'thought-text' : '';
+
+            card.innerHTML = `
+                <div class="log-header">
+                    ${icons[category] || ''}
+                    <span>${headerTitle}</span>
+                </div>
+                <div class="${textClass}">${content}</div>
+            `;
+            
+            feed.insertBefore(card, feed.firstChild);
+            
+            // Return the text container div so we can append to it for streaming thoughts
+            return category === 'thinking' ? card.querySelector('.thought-text') : card;
+        }
+
+        document.getElementById('user-input').addEventListener('keydown', (e) => {
+            if(e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
